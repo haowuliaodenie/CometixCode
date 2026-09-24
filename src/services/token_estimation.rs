@@ -93,8 +93,8 @@ async fn count_tokens_with_bedrock(
         "input": {"invokeModel": {"body": encoded_body}}
     }))
     .ok()?;
-    let endpoint = std::env::var("ANTHROPIC_BEDROCK_BASE_URL")
-        .or_else(|_| std::env::var("AWS_ENDPOINT_URL_BEDROCK_RUNTIME"))
+    let endpoint = crate::utils::process_env::env_var("ANTHROPIC_BEDROCK_BASE_URL")
+        .or_else(|_| crate::utils::process_env::env_var("AWS_ENDPOINT_URL_BEDROCK_RUNTIME"))
         .unwrap_or_else(|_| format!("https://bedrock-runtime.{region}.amazonaws.com"));
     let response = crate::services::api::client::send_bedrock_request(
         reqwest::Method::POST,
@@ -133,14 +133,15 @@ async fn count_tokens_with_vertex(
     };
     let project_id = project_id
         .clone()
-        .or_else(|| std::env::var("ANTHROPIC_VERTEX_PROJECT_ID").ok())?;
-    let base_url = std::env::var("ANTHROPIC_VERTEX_BASE_URL").unwrap_or_else(|_| {
-        if region == "global" {
-            "https://aiplatform.googleapis.com/v1".to_string()
-        } else {
-            format!("https://{region}-aiplatform.googleapis.com/v1")
-        }
-    });
+        .or_else(|| crate::utils::process_env::env_var("ANTHROPIC_VERTEX_PROJECT_ID").ok())?;
+    let base_url =
+        crate::utils::process_env::env_var("ANTHROPIC_VERTEX_BASE_URL").unwrap_or_else(|_| {
+            if region == "global" {
+                "https://aiplatform.googleapis.com/v1".to_string()
+            } else {
+                format!("https://{region}-aiplatform.googleapis.com/v1")
+            }
+        });
     let url = format!(
         "{}/projects/{project_id}/locations/{region}/publishers/anthropic/models/count-tokens:rawPredict",
         base_url.trim_end_matches('/')

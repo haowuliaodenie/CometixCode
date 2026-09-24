@@ -172,6 +172,8 @@ fn get_claude_code_snapshot_content(env: &crate::utils::process_env::EnvSnapshot
         ));
     }
     let path = env.var("PATH").unwrap_or_default();
+    #[cfg(windows)]
+    let path = crate::utils::windows_paths::windows_path_list_to_posix_path_list(path);
     content.push_str(&format!(
         "      echo \"export PATH={}\" >> \"$SNAPSHOT_FILE\"\n",
         crate::utils::bash::shell_quote::quote(&[&path])

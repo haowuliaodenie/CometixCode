@@ -1490,7 +1490,10 @@ fn log_discovered_mcp_server_counts(
     all_configs.extend(claudeai_configs.clone());
     let mut counts =
         serde_json::json!({"enterprise":0,"global":0,"project":0,"user":0,"plugin":0,"claudeai":0});
-    let ant = std::env::var("USER_TYPE").ok().as_deref() == Some("ant");
+    let ant = crate::utils::process_env::env_var("USER_TYPE")
+        .ok()
+        .as_deref()
+        == Some("ant");
     let mut stdio_commands = Vec::new();
     for (name, config) in crate::utils::process_env::ecmascript_object_entries(&all_configs) {
         use super::types::ConfigScope;
@@ -1979,7 +1982,10 @@ mod tests {
     #[test]
     fn discovery_effect_cleanup_matches_source_independent_cancel_and_identity_oracle() {
         use std::sync::Arc;
-        let oracle: serde_json::Value = serde_json::from_str(include_str!("../../../tests/fixtures/oracles/mcp-contract-review-0915/oracle.json")).unwrap();
+        let oracle: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/oracles/mcp-contract-review-0915/oracle.json"
+        ))
+        .unwrap();
         let base = McpDiscoveryDependencies {
             store: crate::state::store::AppStore::new(
                 crate::state::app_state_store::AppState::default(),
@@ -2032,7 +2038,10 @@ mod tests {
 
     #[test]
     fn optional_resource_updates_match_actual_bun_flush_oracle() {
-        let oracle: serde_json::Value = serde_json::from_str(include_str!("../../../tests/fixtures/oracles/mcp-contract-review-0915/oracle.json")).unwrap();
+        let oracle: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/oracles/mcp-contract-review-0915/oracle.json"
+        ))
+        .unwrap();
         let resource = |server: &str, uri: &str| super::super::types::ServerResource {
             server: server.into(),
             uri: uri.into(),

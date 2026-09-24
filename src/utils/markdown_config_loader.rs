@@ -74,9 +74,9 @@ fn normalize_path_for_comparison(path: &Path) -> String {
 }
 
 fn home_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME")
+    crate::utils::process_env::var_os("HOME")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("USERPROFILE").map(PathBuf::from))
+        .or_else(|| crate::utils::process_env::var_os("USERPROFILE").map(PathBuf::from))
 }
 
 /// Maps to: CC `utils/markdownConfigLoader.ts#getProjectDirsUpToHome`.
@@ -519,7 +519,10 @@ mod tests {
     }
     #[test]
     fn description_matches_actual_bun_header_whitespace_and_utf16_oracle() {
-        let cases: serde_json::Value = serde_json::from_str(include_str!("../../tests/fixtures/oracles/plugin-command-dependencies-0916/description-oracle.json")).unwrap();
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/oracles/plugin-command-dependencies-0916/description-oracle.json"
+        ))
+        .unwrap();
         for case in cases.as_array().unwrap() {
             let input = case["input"].as_str().unwrap();
             let units = case["units"]

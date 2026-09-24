@@ -1067,7 +1067,9 @@ impl FileReadTool {
         // conditional activation then runs synchronously. Simple mode skips
         // the complete block. There is no separate dynamic-discovery gate.
         if !crate::utils::env_utils::is_env_truthy(
-            std::env::var("CLAUDE_CODE_SIMPLE").ok().as_deref(),
+            crate::utils::process_env::env_var("CLAUDE_CODE_SIMPLE")
+                .ok()
+                .as_deref(),
         ) {
             let cwd = context.effective_cwd();
             let paths = vec![full_file_path.clone()];
@@ -1776,9 +1778,7 @@ impl crate::tool::ToolCall for FileReadTool {
         use crate::constants::api_limits::PDF_MAX_PAGES_PER_READ;
         use crate::types::permissions::PermissionBehavior;
         use crate::utils::pdf_utils::parse_pdf_page_range;
-        use crate::utils::permissions::filesystem::{
-            FilePermissionType, matching_rule_for_input,
-        };
+        use crate::utils::permissions::filesystem::{FilePermissionType, matching_rule_for_input};
 
         let Ok(input) = FileReadInput::from_args(args) else {
             return crate::tool::ValidationResult::fatal("Invalid Read tool input");
