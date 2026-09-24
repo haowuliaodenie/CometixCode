@@ -38,7 +38,7 @@ pub struct LockInfo {
 /// run in Cometix; when the env override is unset or unrecognized this returns
 /// false, matching the external-user default.
 pub fn is_pid_based_locking_enabled() -> bool {
-    let value = std::env::var("ENABLE_PID_BASED_VERSION_LOCKING").ok();
+    let value = crate::utils::process_env::env_var("ENABLE_PID_BASED_VERSION_LOCKING").ok();
     if crate::utils::env_utils::is_env_truthy(value.as_deref()) {
         return true;
     }
@@ -66,9 +66,45 @@ fn is_process_running_platform(pid: i32) -> bool {
     unsafe { kill(pid, 0) == 0 }
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn is_process_running_platform(pid: i32) -> bool {
+    u32::try_from(pid).is_ok_and(windows_process_is_running)
+}
+
+#[cfg(not(any(unix, windows)))]
 fn is_process_running_platform(_pid: i32) -> bool {
     false
+}
+
+/// Windows counterpart of `kill(pid, 0)`: a process that exists but cannot be
+/// opened (access denied) is treated as running, like Unix `EPERM`.
+#[cfg(windows)]
+pub(crate) fn windows_process_is_running(pid: u32) -> bool {
+    type Handle = *mut std::ffi::c_void;
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn OpenProcess(desired_access: u32, inherit_handle: i32, process_id: u32) -> Handle;
+        fn GetExitCodeProcess(process: Handle, exit_code: *mut u32) -> i32;
+        fn CloseHandle(handle: Handle) -> i32;
+        fn GetLastError() -> u32;
+    }
+    const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+    const ERROR_ACCESS_DENIED: u32 = 5;
+    const STILL_ACTIVE: u32 = 259;
+    if pid == 0 {
+        return false;
+    }
+    // SAFETY: plain Win32 calls; the handle is closed before returning.
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if handle.is_null() {
+            return GetLastError() == ERROR_ACCESS_DENIED;
+        }
+        let mut exit_code = 0u32;
+        let queried = GetExitCodeProcess(handle, &mut exit_code) != 0;
+        CloseHandle(handle);
+        queried && exit_code == STILL_ACTIVE
+    }
 }
 
 /// Maps to CC `pidLock.ts#readLockContent`.

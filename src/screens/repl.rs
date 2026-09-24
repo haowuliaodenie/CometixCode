@@ -3537,7 +3537,7 @@ pub fn Repl(props: &ReplProps, mut hooks: Hooks) -> impl Into<AnyElement<'static
     // Maps to: CC `REPL.tsx:939-942` mount-time env gate.
     let terminal_title_disabled = hooks.use_const(|| {
         crate::utils::env_utils::is_env_truthy(
-            std::env::var("CLAUDE_CODE_DISABLE_TERMINAL_TITLE")
+            crate::utils::process_env::env_var("CLAUDE_CODE_DISABLE_TERMINAL_TITLE")
                 .ok()
                 .as_deref(),
         )
@@ -5267,8 +5267,8 @@ pub fn Repl(props: &ReplProps, mut hooks: Hooks) -> impl Into<AnyElement<'static
 
                             // Maps to CC `QueryEngine.query()` eager/cowork
                             // result boundary.
-                            if crate::utils::env_utils::is_env_truthy(std::env::var(
-                                "CLAUDE_CODE_EAGER_FLUSH").ok().as_deref()) || crate::utils::env_utils::is_env_truthy(std::env::var(
+                            if crate::utils::env_utils::is_env_truthy(crate::utils::process_env::env_var(
+                                "CLAUDE_CODE_EAGER_FLUSH").ok().as_deref()) || crate::utils::env_utils::is_env_truthy(crate::utils::process_env::env_var(
                                 "CLAUDE_CODE_IS_COWORK").ok().as_deref()) {
                                 if let Err(error) =
                                     crate::utils::session_storage::flush_session_storage().await
@@ -13858,7 +13858,9 @@ mod tests {
                 let deadline = std::time::Instant::now() + STEP_BUDGET;
                 while !canvases[since..].iter().any(|canvas| {
                     let text = canvas_lines(canvas).join("\n");
-                    step.wait_for.iter().all(|needle| text.contains(needle.as_str()))
+                    step.wait_for
+                        .iter()
+                        .all(|needle| text.contains(needle.as_str()))
                 }) {
                     let remaining = deadline.saturating_duration_since(std::time::Instant::now());
                     let next = if remaining.is_zero() || canvases.len() >= MAX_FRAMES {
@@ -16934,7 +16936,10 @@ mod tests {
             vec![
                 script_step(&[], text_input_events("/resume")),
                 // Enter only once the loaded picker has the fixture focused.
-                script_step(&["Resume Session", &focused_fixture], vec![key(KeyCode::Enter)]),
+                script_step(
+                    &["Resume Session", &focused_fixture],
+                    vec![key(KeyCode::Enter)],
+                ),
                 script_step(&[assistant_text], Vec::new()),
             ],
         );
@@ -17370,7 +17375,10 @@ mod tests {
             element!(ReplHarness).into_any(),
             vec![
                 script_step(&[], text_input_events("/resume")),
-                script_step(&["Resume Session", &focused_current], vec![key(KeyCode::Enter)]),
+                script_step(
+                    &["Resume Session", &focused_current],
+                    vec![key(KeyCode::Enter)],
+                ),
                 // Reopen only after the selection restored the transcript.
                 script_step(
                     &["restored current session assistant reply"],
@@ -17490,7 +17498,10 @@ mod tests {
                 // session is listed; only then type the search.
                 script_step(
                     &["Resume Session", &other_prompt],
-                    other_prompt.chars().map(|ch| key(KeyCode::Char(ch))).collect(),
+                    other_prompt
+                        .chars()
+                        .map(|ch| key(KeyCode::Char(ch)))
+                        .collect(),
                 ),
                 script_step(
                     &[&search_query],

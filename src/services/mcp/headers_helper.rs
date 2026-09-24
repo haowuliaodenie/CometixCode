@@ -47,7 +47,7 @@ pub async fn get_mcp_headers_from_helper(
         command.args(["-c", helper]);
         command
     };
-    command.envs(std::env::vars());
+    command.envs(crate::utils::process_env::env_vars());
     command.env("CLAUDE_CODE_MCP_SERVER_NAME", server_name);
     if let Some(url) = config.url.as_deref() {
         command.env("CLAUDE_CODE_MCP_SERVER_URL", url);

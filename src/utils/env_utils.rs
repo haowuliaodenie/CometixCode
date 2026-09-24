@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf};
+use std::path::PathBuf;
 
 /// Serialises the ~200 test modules that mutate process-wide state.
 ///
@@ -200,7 +200,7 @@ impl Drop for PinnedProjectDir {
 /// carrier with no single CC function — the `||` operator is the source.
 /// Use this instead of `env::var(..).ok()` when porting those shapes.
 pub fn truthy_env_var(key: &str) -> Option<String> {
-    truthy_env_value(std::env::var(key).ok())
+    truthy_env_value(crate::utils::process_env::env_var(key).ok())
 }
 
 /// Value-level companion to [`truthy_env_var`] for call sites that read the
@@ -235,17 +235,20 @@ pub fn is_env_defined_falsy(env_var: Option<&str>) -> bool {
 
 /// Maps to: CC `utils/envUtils.ts:60-65` `isBareMode`.
 pub fn is_bare_mode() -> bool {
-    is_env_truthy(env::var("CLAUDE_CODE_SIMPLE").ok().as_deref())
-        || std::env::args_os().any(|argument| argument == std::ffi::OsStr::new("--bare"))
+    is_env_truthy(
+        crate::utils::process_env::env_var("CLAUDE_CODE_SIMPLE")
+            .ok()
+            .as_deref(),
+    ) || std::env::args_os().any(|argument| argument == std::ffi::OsStr::new("--bare"))
 }
 
 /// Maps to: CC `utils/envUtils.ts#getAWSRegion`.
 pub fn get_aws_region() -> String {
-    env::var("AWS_REGION")
+    crate::utils::process_env::env_var("AWS_REGION")
         .ok()
         .filter(|region| !region.is_empty())
         .or_else(|| {
-            env::var("AWS_DEFAULT_REGION")
+            crate::utils::process_env::env_var("AWS_DEFAULT_REGION")
                 .ok()
                 .filter(|region| !region.is_empty())
         })
@@ -254,7 +257,7 @@ pub fn get_aws_region() -> String {
 
 /// Maps to: CC `utils/envUtils.ts#getDefaultVertexRegion`.
 pub fn get_default_vertex_region() -> String {
-    env::var("CLOUD_ML_REGION")
+    crate::utils::process_env::env_var("CLOUD_ML_REGION")
         .ok()
         .filter(|region| !region.is_empty())
         .unwrap_or_else(|| "us-east5".to_string())
@@ -279,7 +282,7 @@ pub fn get_vertex_region_for_model(model: Option<&str>) -> String {
             .iter()
             .find(|(prefix, _)| model.starts_with(prefix))
     }) {
-        if let Ok(region) = env::var(variable) {
+        if let Ok(region) = crate::utils::process_env::env_var(variable) {
             if !region.is_empty() {
                 return region;
             }
@@ -293,11 +296,19 @@ pub fn get_vertex_region_for_model(model: Option<&str>) -> String {
 pub fn is_cometix_write_enabled() -> bool {
     #[cfg(test)]
     {
-        is_env_truthy(env::var("COMETIX_WRITE_ENABLED").ok().as_deref())
+        is_env_truthy(
+            crate::utils::process_env::env_var("COMETIX_WRITE_ENABLED")
+                .ok()
+                .as_deref(),
+        )
     }
     #[cfg(not(test))]
     {
-        !is_env_defined_falsy(env::var("COMETIX_WRITE_ENABLED").ok().as_deref())
+        !is_env_defined_falsy(
+            crate::utils::process_env::env_var("COMETIX_WRITE_ENABLED")
+                .ok()
+                .as_deref(),
+        )
     }
 }
 
@@ -319,11 +330,11 @@ pub fn get_claude_config_home_dir_from_snapshot(
 
 /// Maps to: CC `utils/envUtils.ts#getClaudeConfigHomeDir`.
 pub fn get_claude_config_home_dir() -> PathBuf {
-    if let Ok(dir) = env::var("CLAUDE_CONFIG_DIR") {
+    if let Ok(dir) = crate::utils::process_env::env_var("CLAUDE_CONFIG_DIR") {
         PathBuf::from(dir)
-    } else if let Ok(home) = env::var("HOME") {
+    } else if let Ok(home) = crate::utils::process_env::env_var("HOME") {
         PathBuf::from(home).join(".claude")
-    } else if let Ok(home) = env::var("USERPROFILE") {
+    } else if let Ok(home) = crate::utils::process_env::env_var("USERPROFILE") {
         PathBuf::from(home).join(".claude")
     } else {
         PathBuf::from(".claude")
@@ -349,7 +360,7 @@ pub fn is_running_on_homespace_for_audience(
 /// Maps to: CC `utils/envUtils.ts:114-123` `isRunningOnHomespace`.
 pub fn is_running_on_homespace() -> bool {
     is_running_on_homespace_for_audience(
-        &|key| env::var(key).ok(),
+        &|key| crate::utils::process_env::env_var(key).ok(),
         crate::utils::build_profile::build_audience(),
     )
 }

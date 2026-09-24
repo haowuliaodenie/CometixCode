@@ -1,7 +1,7 @@
 //! Maps to: CC `utils/which.ts:58-82` (the Bun runtime branch).
 //! Native filesystem calls carry Bun.which; they never execute the candidate.
 //! Node's execa fallback is not selected in the user-specified Bun baseline.
-//! Windows executable-extension lookup remains an explicit unported platform.
+//! Windows resolves PATHEXT extensions over the startup PATH.
 
 use std::path::{Path, PathBuf};
 
@@ -72,10 +72,58 @@ fn bun_which(command: &str) -> Option<PathBuf> {
     None
 }
 
-#[cfg(not(unix))]
+// Windows: `;`-separated startup PATH, each candidate tried verbatim when it
+// already carries a PATHEXT extension, then with each PATHEXT extension. The
+// current directory is not searched implicitly (NoDefaultCurrentDirectoryInExePath).
+#[cfg(windows)]
+fn bun_which(command: &str) -> Option<PathBuf> {
+    let command = command.split('\0').next().unwrap_or_default();
+    if command.is_empty() {
+        return None;
+    }
+    let startup = crate::utils::process_env::startup_snapshot();
+    let extensions = startup
+        .var("PATHEXT")
+        .filter(|value| !value.is_empty())
+        .unwrap_or(".COM;.EXE;.BAT;.CMD")
+        .split(';')
+        .filter(|extension| !extension.is_empty())
+        .map(str::to_ascii_lowercase)
+        .collect::<Vec<_>>();
+    let has_known_extension = Path::new(command)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            let extension = format!(".{}", extension.to_ascii_lowercase());
+            extensions.contains(&extension)
+        });
+    let resolve = |base: &Path| -> Option<PathBuf> {
+        if has_known_extension && base.is_file() {
+            return Some(base.to_owned());
+        }
+        extensions.iter().find_map(|extension| {
+            let mut candidate = base.as_os_str().to_owned();
+            candidate.push(extension);
+            let candidate = PathBuf::from(candidate);
+            candidate.is_file().then_some(candidate)
+        })
+    };
+    let command_path = Path::new(command);
+    if command_path.is_absolute() {
+        return resolve(command_path);
+    }
+    if command.contains(['/', '\\']) {
+        let cwd = std::env::current_dir().ok()?;
+        return resolve(&cwd.join(command_path));
+    }
+    let path = startup.var_os("PATH")?;
+    std::env::split_paths(path)
+        .filter(|directory| !directory.as_os_str().is_empty())
+        .find_map(|directory| resolve(&directory.join(command)))
+}
+
+#[cfg(not(any(unix, windows)))]
 fn bun_which(_command: &str) -> Option<PathBuf> {
-    // CC delegates native Windows extension/search rules to Bun. This batch
-    // implements the macOS/Linux branch only, without guessing PATHEXT policy.
     None
 }
 

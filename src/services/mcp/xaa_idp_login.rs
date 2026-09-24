@@ -66,7 +66,11 @@ pub struct OidcMetadata {
 
 /// Maps to: CC `services/mcp/xaaIdpLogin.ts#isXaaEnabled`.
 pub fn is_xaa_enabled() -> bool {
-    crate::utils::env_utils::is_env_truthy(std::env::var(CLAUDE_CODE_ENABLE_XAA).ok().as_deref())
+    crate::utils::env_utils::is_env_truthy(
+        crate::utils::process_env::env_var(CLAUDE_CODE_ENABLE_XAA)
+            .ok()
+            .as_deref(),
+    )
 }
 
 /// Maps to: CC `services/mcp/xaaIdpLogin.ts#getXaaIdpSettings`.

@@ -146,7 +146,13 @@ fn process_is_running(pid: u32) -> bool {
     result == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn process_is_running(pid: u32) -> bool {
+    pid == std::process::id()
+        || crate::utils::native_installer::pid_lock::windows_process_is_running(pid)
+}
+
+#[cfg(not(any(unix, windows)))]
 fn process_is_running(pid: u32) -> bool {
     // Fail safe on platforms without a cheap std PID probe: this process is
     // certainly live; foreign records are treated as live until removed.

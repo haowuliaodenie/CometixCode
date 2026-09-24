@@ -588,9 +588,7 @@ fn on_input_text_changed(
     if let Some(active) = app_store.and_then(|store| {
         let state = store.get();
         match &state.speculation {
-            crate::state::app_state_store::SpeculationState::Active(active) => {
-                Some(active.clone())
-            }
+            crate::state::app_state_store::SpeculationState::Active(active) => Some(active.clone()),
             crate::state::app_state_store::SpeculationState::Idle => None,
         }
     }) {
@@ -3101,9 +3099,9 @@ pub fn PromptInput<'a>(
     let history_failed_match = history_search.failed_match.get();
     let input_row_height = rendered_lines.len().max(1);
     let terminal_focus = hooks.use_terminal_focus();
-    let editor_for_external_hint = std::env::var("EDITOR")
+    let editor_for_external_hint = crate::utils::process_env::env_var("EDITOR")
         .ok()
-        .or_else(|| std::env::var("VISUAL").ok());
+        .or_else(|| crate::utils::process_env::env_var("VISUAL").ok());
     let external_editor_hint = external_editor_hint_notification_from_state(
         input_row_height > 1,
         false,

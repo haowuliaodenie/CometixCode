@@ -15,7 +15,6 @@ use crate::utils::env_utils::{get_aws_region, get_vertex_region_for_model};
 use crate::utils::model::model::get_small_fast_model;
 use sha2::{Digest as _, Sha256};
 use std::collections::HashMap;
-use std::env;
 
 // ---------------------------------------------------------------------------
 // Stub types for modules not yet ported
@@ -50,7 +49,7 @@ const DEFAULT_API_TIMEOUT_MS: u64 = 600_000;
 /// Maps to: CC services/api/client.ts:330-354
 fn get_custom_headers() -> HashMap<String, String> {
     let mut headers = HashMap::new();
-    let raw = match env::var("ANTHROPIC_CUSTOM_HEADERS") {
+    let raw = match crate::utils::process_env::env_var("ANTHROPIC_CUSTOM_HEADERS") {
         Ok(v) => v,
         Err(_) => return headers,
     };
@@ -81,7 +80,7 @@ fn get_custom_headers() -> HashMap<String, String> {
 /// Maps to: CC services/api/client.ts:318-328
 async fn configure_api_key_headers(headers: &mut HashMap<String, Option<String>>) {
     let is_non_interactive = crate::bootstrap::state::get_is_non_interactive_session();
-    let token = env::var("ANTHROPIC_AUTH_TOKEN")
+    let token = crate::utils::process_env::env_var("ANTHROPIC_AUTH_TOKEN")
         .ok()
         .filter(|t| !t.trim().is_empty());
 
@@ -163,9 +162,10 @@ pub async fn get_anthropic_client(
 
     // ----- Build default headers -----
     // Maps to: CC services/api/client.ts:101-129
-    let container_id = env::var("CLAUDE_CODE_CONTAINER_ID").ok();
-    let remote_session_id = env::var("CLAUDE_CODE_REMOTE_SESSION_ID").ok();
-    let client_app = env::var("CLAUDE_AGENT_SDK_CLIENT_APP").ok();
+    let container_id = crate::utils::process_env::env_var("CLAUDE_CODE_CONTAINER_ID").ok();
+    let remote_session_id =
+        crate::utils::process_env::env_var("CLAUDE_CODE_REMOTE_SESSION_ID").ok();
+    let client_app = crate::utils::process_env::env_var("CLAUDE_AGENT_SDK_CLIENT_APP").ok();
     let custom_headers = get_custom_headers();
 
     let mut default_headers: HashMap<String, Option<String>> = HashMap::new();
@@ -199,14 +199,14 @@ pub async fn get_anthropic_client(
 
     crate::utils::debug::log_for_debugging(&format!(
         "[API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: {}, has Authorization header: {}",
-        env::var("ANTHROPIC_CUSTOM_HEADERS").is_ok(),
+        crate::utils::process_env::env_var("ANTHROPIC_CUSTOM_HEADERS").is_ok(),
         custom_headers.contains_key("Authorization"),
     ));
 
     // Additional protection header
     // Maps to: CC services/api/client.ts:124-129
     if crate::utils::env_utils::is_env_truthy(
-        std::env::var("CLAUDE_CODE_ADDITIONAL_PROTECTION")
+        crate::utils::process_env::env_var("CLAUDE_CODE_ADDITIONAL_PROTECTION")
             .ok()
             .as_deref(),
     ) {
@@ -249,7 +249,7 @@ pub async fn get_anthropic_client(
 
     // ----- Common client args -----
     // Maps to: CC services/api/client.ts:141-152
-    let timeout_ms: u64 = env::var("API_TIMEOUT_MS")
+    let timeout_ms: u64 = crate::utils::process_env::env_var("API_TIMEOUT_MS")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(DEFAULT_API_TIMEOUT_MS);
@@ -270,7 +270,7 @@ pub async fn get_anthropic_client(
         ApiProvider::Bedrock => {
             let small_fast_model = get_small_fast_model();
             let aws_region = if model.as_deref() == Some(small_fast_model.as_str()) {
-                env::var("ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION")
+                crate::utils::process_env::env_var("ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION")
                     .ok()
                     .unwrap_or_else(get_aws_region)
             } else {
@@ -280,14 +280,16 @@ pub async fn get_anthropic_client(
             crate::utils::debug::log_for_debugging(&format!(
                 "[API:bedrock] region={aws_region}, skip_auth={}",
                 crate::utils::env_utils::is_env_truthy(
-                    std::env::var("CLAUDE_CODE_SKIP_BEDROCK_AUTH")
+                    crate::utils::process_env::env_var("CLAUDE_CODE_SKIP_BEDROCK_AUTH")
                         .ok()
                         .as_deref()
                 ),
             ));
 
             // Determine auth strategy
-            let bedrock_auth = if let Ok(bearer) = env::var("AWS_BEARER_TOKEN_BEDROCK") {
+            let bedrock_auth = if let Ok(bearer) =
+                crate::utils::process_env::env_var("AWS_BEARER_TOKEN_BEDROCK")
+            {
                 // Bearer token auth overrides everything
                 let mut hdrs = default_headers.clone();
                 hdrs.insert(
@@ -298,7 +300,7 @@ pub async fn get_anthropic_client(
                     extra_headers: hdrs,
                 }
             } else if crate::utils::env_utils::is_env_truthy(
-                std::env::var("CLAUDE_CODE_SKIP_BEDROCK_AUTH")
+                crate::utils::process_env::env_var("CLAUDE_CODE_SKIP_BEDROCK_AUTH")
                     .ok()
                     .as_deref(),
             ) {
@@ -329,22 +331,23 @@ pub async fn get_anthropic_client(
         // Maps to: CC services/api/client.ts:191-220
         // ---------------------------------------------------------------
         ApiProvider::Foundry => {
-            let foundry_auth = if env::var("ANTHROPIC_FOUNDRY_API_KEY").is_ok() {
-                FoundryAuth::ApiKey
-            } else if crate::utils::env_utils::is_env_truthy(
-                std::env::var("CLAUDE_CODE_SKIP_FOUNDRY_AUTH")
-                    .ok()
-                    .as_deref(),
-            ) {
-                FoundryAuth::SkipAuth
-            } else {
-                FoundryAuth::AzureAd
-            };
+            let foundry_auth =
+                if crate::utils::process_env::env_var("ANTHROPIC_FOUNDRY_API_KEY").is_ok() {
+                    FoundryAuth::ApiKey
+                } else if crate::utils::env_utils::is_env_truthy(
+                    crate::utils::process_env::env_var("CLAUDE_CODE_SKIP_FOUNDRY_AUTH")
+                        .ok()
+                        .as_deref(),
+                ) {
+                    FoundryAuth::SkipAuth
+                } else {
+                    FoundryAuth::AzureAd
+                };
 
             crate::utils::debug::log_for_debugging(&format!(
                 "[API:foundry] auth={foundry_auth:?}, skip_auth={}",
                 crate::utils::env_utils::is_env_truthy(
-                    std::env::var("CLAUDE_CODE_SKIP_FOUNDRY_AUTH")
+                    crate::utils::process_env::env_var("CLAUDE_CODE_SKIP_FOUNDRY_AUTH")
                         .ok()
                         .as_deref()
                 ),
@@ -370,20 +373,21 @@ pub async fn get_anthropic_client(
             // consumer-owned redefinition of the imported auth function.
 
             let region = get_vertex_region_for_model(model.as_deref());
-            let project_id = env::var("ANTHROPIC_VERTEX_PROJECT_ID").ok();
+            let project_id = crate::utils::process_env::env_var("ANTHROPIC_VERTEX_PROJECT_ID").ok();
 
             // Determine whether GoogleAuth needs an explicit projectId fallback
             // to avoid the 12-second GCE metadata server timeout.
             // Maps to: CC services/api/client.ts:253-288
-            let has_project_env_var = env::var("GCLOUD_PROJECT").is_ok()
-                || env::var("GOOGLE_CLOUD_PROJECT").is_ok()
-                || env::var("gcloud_project").is_ok()
-                || env::var("google_cloud_project").is_ok();
-            let has_key_file = env::var("GOOGLE_APPLICATION_CREDENTIALS").is_ok()
-                || env::var("google_application_credentials").is_ok();
+            let has_project_env_var = crate::utils::process_env::env_var("GCLOUD_PROJECT").is_ok()
+                || crate::utils::process_env::env_var("GOOGLE_CLOUD_PROJECT").is_ok()
+                || crate::utils::process_env::env_var("gcloud_project").is_ok()
+                || crate::utils::process_env::env_var("google_cloud_project").is_ok();
+            let has_key_file = crate::utils::process_env::env_var("GOOGLE_APPLICATION_CREDENTIALS")
+                .is_ok()
+                || crate::utils::process_env::env_var("google_application_credentials").is_ok();
 
             let vertex_auth = if crate::utils::env_utils::is_env_truthy(
-                std::env::var("CLAUDE_CODE_SKIP_VERTEX_AUTH")
+                crate::utils::process_env::env_var("CLAUDE_CODE_SKIP_VERTEX_AUTH")
                     .ok()
                     .as_deref(),
             ) {
@@ -401,7 +405,7 @@ pub async fn get_anthropic_client(
             crate::utils::debug::log_for_debugging(&format!(
                 "[API:vertex] region={region}, project_id={project_id:?}, skip_auth={}",
                 crate::utils::env_utils::is_env_truthy(
-                    std::env::var("CLAUDE_CODE_SKIP_VERTEX_AUTH")
+                    crate::utils::process_env::env_var("CLAUDE_CODE_SKIP_VERTEX_AUTH")
                         .ok()
                         .as_deref()
                 ),
@@ -441,13 +445,18 @@ pub async fn get_anthropic_client(
             // Maps to: CC `services/api/client.ts:306-311`: only ant staging
             // sessions source their API base URL from the canonical OAuth
             // configuration owner.
-            let base_url = if env::var("USER_TYPE").ok().as_deref() == Some("ant")
+            let base_url = if crate::utils::process_env::env_var("USER_TYPE")
+                .ok()
+                .as_deref()
+                == Some("ant")
                 && crate::utils::env_utils::is_env_truthy(
-                    std::env::var("USE_STAGING_OAUTH").ok().as_deref(),
+                    crate::utils::process_env::env_var("USE_STAGING_OAUTH")
+                        .ok()
+                        .as_deref(),
                 ) {
                 Some(crate::constants::oauth::get_oauth_config()?.base_api_url)
             } else {
-                env::var("ANTHROPIC_BASE_URL").ok()
+                crate::utils::process_env::env_var("ANTHROPIC_BASE_URL").ok()
             };
 
             Ok(AnthropicClientHandle {
@@ -607,18 +616,25 @@ impl AnthropicClientHandle {
                 "Bedrock provider SDK is not wired in Cometix Phase 1; use Direct API".to_string(),
             )),
             ProviderConfig::Foundry { auth } => {
-                let base_url = env::var("ANTHROPIC_FOUNDRY_BASE_URL").ok().or_else(|| {
-                    env::var("ANTHROPIC_FOUNDRY_RESOURCE").ok().map(|resource| {
-                        format!("https://{resource}.services.ai.azure.com/anthropic/")
-                    })
-                });
+                let base_url = crate::utils::process_env::env_var("ANTHROPIC_FOUNDRY_BASE_URL")
+                    .ok()
+                    .or_else(|| {
+                        crate::utils::process_env::env_var("ANTHROPIC_FOUNDRY_RESOURCE")
+                            .ok()
+                            .map(|resource| {
+                                format!("https://{resource}.services.ai.azure.com/anthropic/")
+                            })
+                    });
                 let Some(base_url) = base_url else {
                     return Err(ClientError::MissingConfig(
                         "ANTHROPIC_FOUNDRY_BASE_URL or ANTHROPIC_FOUNDRY_RESOURCE".to_string(),
                     ));
                 };
                 let (api_key, auth_token) = match auth {
-                    FoundryAuth::ApiKey => (env::var("ANTHROPIC_FOUNDRY_API_KEY").ok(), None),
+                    FoundryAuth::ApiKey => (
+                        crate::utils::process_env::env_var("ANTHROPIC_FOUNDRY_API_KEY").ok(),
+                        None,
+                    ),
                     FoundryAuth::AzureAd => {
                         return Err(ClientError::Sdk(
                             "Foundry DefaultAzureCredential requires the provider SDK adapter"
@@ -821,7 +837,7 @@ pub(crate) async fn send_bedrock_request(
     }
     match auth {
         BedrockAuth::BearerToken { .. } => {
-            let token = std::env::var("AWS_BEARER_TOKEN_BEDROCK").ok()?;
+            let token = crate::utils::process_env::env_var("AWS_BEARER_TOKEN_BEDROCK").ok()?;
             request = request.bearer_auth(token);
         }
         BedrockAuth::Credentials(credentials) => {

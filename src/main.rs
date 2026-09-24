@@ -149,7 +149,7 @@ fn resolve_thinking_launch(
         _ => {
             // Maps to: CC MAX_THINKING_TOKENS env (truthy) ?? options.maxThinkingTokens.
             // Invalid non-empty env parses to NaN and blocks CLI fallback.
-            let env_max = std::env::var("MAX_THINKING_TOKENS")
+            let env_max = crate::utils::process_env::env_var("MAX_THINKING_TOKENS")
                 .ok()
                 .filter(|value| !value.is_empty());
             let max_thinking_tokens = match env_max.as_deref() {
@@ -418,7 +418,7 @@ fn build_initial_app_state_with_thinking(
         crate::bootstrap::state::get_is_non_interactive_session(),
         crate::utils::agent_swarms_enabled::is_agent_swarms_enabled()
             && crate::utils::teammate::is_teammate(),
-        std::env::var("CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION")
+        crate::utils::process_env::env_var("CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION")
             .ok()
             .as_deref(),
     );
@@ -810,7 +810,10 @@ fn load_settings_from_flag(settings_value: &str) -> Result<(), String> {
             std::env::current_dir().unwrap_or_default().join(path)
         };
         match std::fs::read_to_string(&resolved) {
-            Ok(_) => resolved.canonicalize().unwrap_or(resolved),
+            Ok(_) => resolved
+                .canonicalize()
+                .map(utils::windows_paths::strip_windows_verbatim_prefix)
+                .unwrap_or(resolved),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 return Err(format!(
                     "Error: Settings file not found: {}",

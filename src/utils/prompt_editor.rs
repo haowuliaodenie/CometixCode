@@ -147,7 +147,7 @@ fn command_exists(command: &str) -> bool {
     if candidate.components().count() > 1 {
         return candidate.is_file();
     }
-    std::env::var_os("PATH").is_some_and(|path| {
+    crate::utils::process_env::var_os("PATH").is_some_and(|path| {
         std::env::split_paths(&path).any(|directory| directory.join(command).is_file())
     })
 }
@@ -165,15 +165,17 @@ fn command_exists(command: &str) -> bool {
 pub fn external_editor_command() -> Option<(String, Vec<String>)> {
     static RESOLVED: std::sync::OnceLock<Option<(String, Vec<String>)>> =
         std::sync::OnceLock::new();
-    RESOLVED.get_or_init(resolve_external_editor_command).clone()
+    RESOLVED
+        .get_or_init(resolve_external_editor_command)
+        .clone()
 }
 
 fn resolve_external_editor_command() -> Option<(String, Vec<String>)> {
-    let configured = std::env::var("VISUAL")
+    let configured = crate::utils::process_env::env_var("VISUAL")
         .ok()
         .filter(|value| !value.trim().is_empty())
         .or_else(|| {
-            std::env::var("EDITOR")
+            crate::utils::process_env::env_var("EDITOR")
                 .ok()
                 .filter(|value| !value.trim().is_empty())
         });

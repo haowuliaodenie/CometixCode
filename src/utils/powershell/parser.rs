@@ -218,7 +218,7 @@ const DEFAULT_PARSE_TIMEOUT_MS: u64 = 5_000;
 
 /// Maps to: CC `parser.ts:208-215#getParseTimeoutMs`.
 fn get_parse_timeout_ms() -> u64 {
-    std::env::var("CLAUDE_CODE_PWSH_PARSE_TIMEOUT_MS")
+    crate::utils::process_env::env_var("CLAUDE_CODE_PWSH_PARSE_TIMEOUT_MS")
         .ok()
         .filter(|value| !value.is_empty())
         .and_then(|value| value.parse::<u64>().ok())

@@ -66,7 +66,9 @@ pub fn get_teammate_command_from_parts(
 pub fn get_teammate_command() -> String {
     let executable = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("cometix"));
     get_teammate_command_from_parts(
-        std::env::var(TEAMMATE_COMMAND_ENV_VAR).ok().as_deref(),
+        crate::utils::process_env::env_var(TEAMMATE_COMMAND_ENV_VAR)
+            .ok()
+            .as_deref(),
         executable,
     )
 }
@@ -176,7 +178,7 @@ pub fn build_inherited_env_vars_from_map(env: &BTreeMap<String, String>) -> Stri
 
 /// Maps to: CC `buildInheritedEnvVars()`.
 pub fn build_inherited_env_vars() -> String {
-    let env = std::env::vars().collect::<BTreeMap<_, _>>();
+    let env = crate::utils::process_env::env_vars().collect::<BTreeMap<_, _>>();
     build_inherited_env_vars_from_map(&env)
 }
 

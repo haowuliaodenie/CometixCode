@@ -12,7 +12,7 @@ pub fn is_inside_tmux_sync_from_env(original_user_tmux: Option<&str>) -> bool {
 
 /// Maps to: CC `isInsideTmuxSync()`.
 pub fn is_inside_tmux_sync() -> bool {
-    is_inside_tmux_sync_from_env(std::env::var("TMUX").ok().as_deref())
+    is_inside_tmux_sync_from_env(crate::utils::process_env::env_var("TMUX").ok().as_deref())
 }
 
 /// Maps to: CC `isInsideTmux()`.
@@ -22,7 +22,7 @@ pub async fn is_inside_tmux() -> bool {
 
 /// Maps to: CC `getLeaderPaneId()`.
 pub fn get_leader_pane_id() -> Option<String> {
-    std::env::var("TMUX_PANE")
+    crate::utils::process_env::env_var("TMUX_PANE")
         .ok()
         .filter(|value| !value.is_empty())
 }
@@ -50,8 +50,12 @@ pub fn is_in_iterm2_from_env(
 /// Maps to: CC `isInITerm2()`.
 pub fn is_in_iterm2() -> bool {
     is_in_iterm2_from_env(
-        std::env::var("TERM_PROGRAM").ok().as_deref(),
-        std::env::var("ITERM_SESSION_ID").ok().as_deref(),
+        crate::utils::process_env::env_var("TERM_PROGRAM")
+            .ok()
+            .as_deref(),
+        crate::utils::process_env::env_var("ITERM_SESSION_ID")
+            .ok()
+            .as_deref(),
         crate::utils::env::get().terminal.as_deref(),
     )
 }

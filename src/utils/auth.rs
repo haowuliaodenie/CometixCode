@@ -173,8 +173,14 @@ fn env_value(get_env: &impl Fn(&str) -> Option<String>, key: &str) -> Option<Str
 
 /// Maps to: CC `utils/auth.ts:88-96` `isManagedOAuthContext`.
 fn is_managed_oauth_context() -> bool {
-    crate::utils::env_utils::is_env_truthy(std::env::var("CLAUDE_CODE_REMOTE").ok().as_deref())
-        || std::env::var("CLAUDE_CODE_ENTRYPOINT").ok().as_deref() == Some("claude-desktop")
+    crate::utils::env_utils::is_env_truthy(
+        crate::utils::process_env::env_var("CLAUDE_CODE_REMOTE")
+            .ok()
+            .as_deref(),
+    ) || crate::utils::process_env::env_var("CLAUDE_CODE_ENTRYPOINT")
+        .ok()
+        .as_deref()
+        == Some("claude-desktop")
 }
 
 /// Maps to: CC `utils/auth.ts:355-363` `getConfiguredApiKeyHelper`.
@@ -230,7 +236,7 @@ static API_KEY_HELPER_STATE: LazyLock<Mutex<ApiKeyHelperState>> =
 
 /// Maps to: CC `utils/auth.ts:435-452` `calculateApiKeyHelperTTL`.
 pub fn calculate_api_key_helper_ttl() -> u64 {
-    if let Some(raw) = std::env::var("CLAUDE_CODE_API_KEY_HELPER_TTL_MS")
+    if let Some(raw) = crate::utils::process_env::env_var("CLAUDE_CODE_API_KEY_HELPER_TTL_MS")
         .ok()
         .filter(|value| !value.is_empty())
     {
@@ -699,7 +705,7 @@ pub fn get_claude_ai_oauth_tokens() -> Option<ClaudeAiOAuthTokensSnapshot> {
     if crate::utils::env_utils::is_bare_mode() {
         return None;
     }
-    if let Some(access_token) = std::env::var("CLAUDE_CODE_OAUTH_TOKEN")
+    if let Some(access_token) = crate::utils::process_env::env_var("CLAUDE_CODE_OAUTH_TOKEN")
         .ok()
         .filter(|token| !token.is_empty())
     {
@@ -882,7 +888,7 @@ pub fn get_auth_token_source() -> AuthTokenSourceStatus {
         };
     }
 
-    if std::env::var("ANTHROPIC_AUTH_TOKEN")
+    if crate::utils::process_env::env_var("ANTHROPIC_AUTH_TOKEN")
         .ok()
         .is_some_and(|token| !token.is_empty())
         && !is_managed_oauth_context()
@@ -893,7 +899,7 @@ pub fn get_auth_token_source() -> AuthTokenSourceStatus {
         };
     }
 
-    if std::env::var("CLAUDE_CODE_OAUTH_TOKEN")
+    if crate::utils::process_env::env_var("CLAUDE_CODE_OAUTH_TOKEN")
         .ok()
         .is_some_and(|token| !token.is_empty())
     {
@@ -905,7 +911,9 @@ pub fn get_auth_token_source() -> AuthTokenSourceStatus {
 
     if get_oauth_token_from_file_descriptor().is_some() {
         return AuthTokenSourceStatus {
-            source: if std::env::var_os("CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR").is_some() {
+            source: if crate::utils::process_env::var_os("CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR")
+                .is_some()
+            {
                 AuthTokenSource::ClaudeCodeOauthTokenFileDescriptor
             } else {
                 AuthTokenSource::CcrOauthTokenFile
@@ -967,7 +975,7 @@ pub fn get_anthropic_api_key_with_source(
     opts: GetAnthropicApiKeyOptions,
 ) -> AnthropicApiKeyWithSource {
     let config = crate::utils::config::load_global_config();
-    let get_env = |key: &str| std::env::var(key).ok();
+    let get_env = |key: &str| crate::utils::process_env::env_var(key).ok();
     if crate::utils::env_utils::is_bare_mode() {
         if let Some(api_key) = env_value(&get_env, "ANTHROPIC_API_KEY") {
             return AnthropicApiKeyWithSource {
@@ -1071,27 +1079,33 @@ pub fn is_anthropic_auth_enabled() -> bool {
         return false;
     }
 
-    if std::env::var("ANTHROPIC_UNIX_SOCKET")
+    if crate::utils::process_env::env_var("ANTHROPIC_UNIX_SOCKET")
         .ok()
         .is_some_and(|value| !value.is_empty())
     {
-        return std::env::var("CLAUDE_CODE_OAUTH_TOKEN")
+        return crate::utils::process_env::env_var("CLAUDE_CODE_OAUTH_TOKEN")
             .ok()
             .is_some_and(|value| !value.is_empty());
     }
 
     let is_3p = crate::utils::env_utils::is_env_truthy(
-        std::env::var("CLAUDE_CODE_USE_BEDROCK").ok().as_deref(),
+        crate::utils::process_env::env_var("CLAUDE_CODE_USE_BEDROCK")
+            .ok()
+            .as_deref(),
     ) || crate::utils::env_utils::is_env_truthy(
-        std::env::var("CLAUDE_CODE_USE_VERTEX").ok().as_deref(),
+        crate::utils::process_env::env_var("CLAUDE_CODE_USE_VERTEX")
+            .ok()
+            .as_deref(),
     ) || crate::utils::env_utils::is_env_truthy(
-        std::env::var("CLAUDE_CODE_USE_FOUNDRY").ok().as_deref(),
+        crate::utils::process_env::env_var("CLAUDE_CODE_USE_FOUNDRY")
+            .ok()
+            .as_deref(),
     );
-    let has_external_auth_token = std::env::var("ANTHROPIC_AUTH_TOKEN")
+    let has_external_auth_token = crate::utils::process_env::env_var("ANTHROPIC_AUTH_TOKEN")
         .ok()
         .is_some_and(|value| !value.is_empty())
         || get_configured_api_key_helper().is_some()
-        || std::env::var("CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR")
+        || crate::utils::process_env::env_var("CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR")
             .ok()
             .is_some_and(|value| !value.is_empty());
     let api_key_source = get_anthropic_api_key_with_source(GetAnthropicApiKeyOptions {

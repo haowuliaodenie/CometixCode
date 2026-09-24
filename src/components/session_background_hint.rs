@@ -53,7 +53,7 @@ pub fn SessionBackgroundHint(
         move || has_foreground,
         move || {
             if crate::utils::env_utils::is_env_truthy(
-                std::env::var("CLAUDE_CODE_DISABLE_BACKGROUND_TASKS")
+                crate::utils::process_env::env_var("CLAUDE_CODE_DISABLE_BACKGROUND_TASKS")
                     .ok()
                     .as_deref(),
             ) {

@@ -208,7 +208,7 @@ pub fn default_setup_screens_snapshot() -> SetupScreensSnapshot {
     let detected = runtime_env::get();
     setup_screens_snapshot_from_readonly_runtime(
         &load_global_config(),
-        &|key| std::env::var(key).ok(),
+        &|key| crate::utils::process_env::env_var(key).ok(),
         std::env::args(),
         detected.terminal.clone(),
         detected.platform,
@@ -221,7 +221,7 @@ pub fn default_status_notice_context(
     let cwd = std::env::current_dir().unwrap_or_default();
     status_notice_context_from_readonly_runtime(
         &load_global_config(),
-        &|key| std::env::var(key).ok(),
+        &|key| crate::utils::process_env::env_var(key).ok(),
         &cwd,
         discover_claude_md_files(),
         ide_installation_status,

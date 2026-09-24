@@ -249,6 +249,27 @@ pub fn var(key: impl AsRef<OsStr>) -> Option<String> {
     snapshot().var(key).map(str::to_owned)
 }
 
+/// `std::env::var`-shaped reader over the current carrier version.
+pub fn env_var(key: impl AsRef<OsStr>) -> Result<String, std::env::VarError> {
+    match snapshot().var_os(key) {
+        None => Err(std::env::VarError::NotPresent),
+        Some(value) => value
+            .to_str()
+            .map(str::to_owned)
+            .ok_or_else(|| std::env::VarError::NotUnicode(value.to_os_string())),
+    }
+}
+
+/// `std::env::vars`-shaped iterator over the current carrier version,
+/// skipping entries that are not valid Unicode.
+pub fn env_vars() -> impl Iterator<Item = (String, String)> {
+    snapshot()
+        .iter()
+        .filter_map(|(key, value)| Some((key.to_str()?.to_owned(), value.to_str()?.to_owned())))
+        .collect::<Vec<_>>()
+        .into_iter()
+}
+
 /// Begins one source-synchronous environment staging turn. The lock covers
 /// only staging/publication; callers must not perform I/O, callbacks, awaits,
 /// or joins while it is held. A nested writer on the same thread panics before

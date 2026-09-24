@@ -382,8 +382,8 @@ pub async fn install_bindings_for_vscode_terminal(
     let theme = crate::utils::theme::get_theme(theme);
     let editor_name = editor.display_name();
     if is_vscode_remote_ssh_for_env(
-        &std::env::var("VSCODE_GIT_ASKPASS_MAIN").unwrap_or_default(),
-        &std::env::var("PATH").unwrap_or_default(),
+        &crate::utils::process_env::env_var("VSCODE_GIT_ASKPASS_MAIN").unwrap_or_default(),
+        &crate::utils::process_env::env_var("PATH").unwrap_or_default(),
     ) {
         let warning = color(Some(theme.warning), ColorType::Foreground)(&format!(
             "Cannot install keybindings from a remote {editor_name} session."
@@ -607,10 +607,10 @@ pub async fn install_bindings_for_alacritty(
     let theme = crate::utils::theme::get_theme(theme);
     let home =
         std::env::home_dir().ok_or_else(|| anyhow::anyhow!("Home directory is unavailable"))?;
-    let xdg = std::env::var_os("XDG_CONFIG_HOME")
+    let xdg = crate::utils::process_env::var_os("XDG_CONFIG_HOME")
         .filter(|value| !value.is_empty())
         .map(PathBuf::from);
-    let app_data = std::env::var_os("APPDATA")
+    let app_data = crate::utils::process_env::var_os("APPDATA")
         .filter(|value| !value.is_empty())
         .map(PathBuf::from);
     let paths = alacritty_config_paths_for(
@@ -1409,7 +1409,11 @@ mod tests {
         async fn terminal_setup_apple_installer_matches_official_bun_argv_effects_and_errors() {
             let _guard = Guard(chalk::stdout_level());
             chalk::set_stdout_level(0);
-            let rows:Vec<Value>=serde_json::from_str(include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/fixtures/oracles/terminal-setup-0913/apple/installer-oracle.json"))).unwrap();
+            let rows: Vec<Value> = serde_json::from_str(include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/fixtures/oracles/terminal-setup-0913/apple/installer-oracle.json"
+            )))
+            .unwrap();
             for row in rows {
                 let input = &row["input"];
                 let integers = |key: &str| {

@@ -21,6 +21,32 @@ pub fn windows_path_to_posix_path(path: &str) -> String {
     path.replace('\\', "/")
 }
 
+/// Converts a `;`-separated Windows path list (e.g. `PATH`) into the
+/// `:`-separated POSIX list Git Bash expects. Empty entries are dropped.
+pub fn windows_path_list_to_posix_path_list(value: &str) -> String {
+    value
+        .split(';')
+        .filter(|entry| !entry.is_empty())
+        .map(windows_path_to_posix_path)
+        .collect::<Vec<_>>()
+        .join(":")
+}
+
+/// Rewrites a Win32 extended-length (`\\?\`) path into its ordinary spelling,
+/// the form Node's `fs.realpathSync` returns. Other paths are returned as-is.
+pub fn strip_windows_verbatim_prefix(path: PathBuf) -> PathBuf {
+    let Some(text) = path.to_str() else {
+        return path;
+    };
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{rest}"))
+    } else if let Some(rest) = text.strip_prefix(r"\\?\") {
+        PathBuf::from(rest)
+    } else {
+        path
+    }
+}
+
 /// Maps to CC `posixPathToWindowsPath`.
 pub fn posix_path_to_windows_path(path: &str) -> String {
     if path.starts_with("//") {
@@ -61,7 +87,7 @@ fn executable_exists(path: &Path) -> bool {
 /// Maps to CC `findGitBashPath()` without process exit: callers surface the
 /// official installation message as an execution error.
 pub fn find_git_bash_path() -> Result<PathBuf, String> {
-    if let Some(path) = std::env::var_os("CLAUDE_CODE_GIT_BASH_PATH") {
+    if let Some(path) = crate::utils::process_env::var_os("CLAUDE_CODE_GIT_BASH_PATH") {
         let path = PathBuf::from(path);
         if executable_exists(&path) {
             return Ok(path);

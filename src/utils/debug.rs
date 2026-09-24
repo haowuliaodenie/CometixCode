@@ -57,7 +57,7 @@ impl DebugLogLevel {
 
 /// Maps to: CC `utils/debug.ts#getMinDebugLogLevel`.
 pub fn get_min_debug_log_level() -> DebugLogLevel {
-    std::env::var("CLAUDE_CODE_DEBUG_LOG_LEVEL")
+    crate::utils::process_env::env_var("CLAUDE_CODE_DEBUG_LOG_LEVEL")
         .ok()
         .as_deref()
         .and_then(DebugLogLevel::from_env_name)
@@ -69,7 +69,7 @@ pub fn get_debug_log_path() -> PathBuf {
     if let Some(path) = config().debug_file.clone() {
         return path;
     }
-    if let Ok(dir) = std::env::var("CLAUDE_CODE_DEBUG_LOGS_DIR") {
+    if let Ok(dir) = crate::utils::process_env::env_var("CLAUDE_CODE_DEBUG_LOGS_DIR") {
         return PathBuf::from(dir)
             .join(format!("{}.log", crate::bootstrap::state::get_session_id()));
     }
@@ -227,7 +227,11 @@ impl ProfileSelection {
 
     /// `COMETIX_DEBUG_PROFILES`: the same list, from the environment.
     fn from_env() -> Self {
-        Self::parse(std::env::var("COMETIX_DEBUG_PROFILES").ok().as_deref())
+        Self::parse(
+            crate::utils::process_env::env_var("COMETIX_DEBUG_PROFILES")
+                .ok()
+                .as_deref(),
+        )
     }
 
     fn or(self, other: Self) -> Self {
@@ -328,7 +332,7 @@ pub fn frame_profile_enabled() -> bool {
 /// bench-only per-frame JSONL for offline analysis. The Rust twin uses the
 /// same record shape so one analysis script can consume both sides.
 pub fn frame_timing_log_path() -> Option<std::path::PathBuf> {
-    std::env::var_os("COMETIX_FRAME_TIMING_LOG")
+    crate::utils::process_env::var_os("COMETIX_FRAME_TIMING_LOG")
         .filter(|value| !value.is_empty())
         .map(std::path::PathBuf::from)
 }
@@ -341,7 +345,7 @@ pub fn frame_timing_sample_tick() -> bool {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     static EVERY: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
     let every = *EVERY.get_or_init(|| {
-        std::env::var("COMETIX_FRAME_TIMING_SAMPLE_EVERY")
+        crate::utils::process_env::env_var("COMETIX_FRAME_TIMING_SAMPLE_EVERY")
             .ok()
             .and_then(|value| value.parse::<u64>().ok())
             .filter(|&value| value >= 1)
@@ -364,8 +368,7 @@ pub fn process_cpu_usage_micros() -> (u64, u64) {
         }
         // SAFETY: getrusage returned success, so the struct is initialized.
         let usage = unsafe { usage.assume_init() };
-        let to_micros =
-            |time: libc::timeval| time.tv_sec as u64 * 1_000_000 + time.tv_usec as u64;
+        let to_micros = |time: libc::timeval| time.tv_sec as u64 * 1_000_000 + time.tv_usec as u64;
         (to_micros(usage.ru_utime), to_micros(usage.ru_stime))
     }
     #[cfg(not(unix))]
@@ -401,10 +404,18 @@ impl DebugConfig {
             || debug_to_stderr
             || debug_file.is_some()
             || debug_filter.is_some()
-            || crate::utils::env_utils::is_env_truthy(std::env::var("DEBUG").ok().as_deref())
-            || crate::utils::env_utils::is_env_truthy(std::env::var("DEBUG_SDK").ok().as_deref())
             || crate::utils::env_utils::is_env_truthy(
-                std::env::var("CLAUDE_CODE_DEBUG").ok().as_deref(),
+                crate::utils::process_env::env_var("DEBUG").ok().as_deref(),
+            )
+            || crate::utils::env_utils::is_env_truthy(
+                crate::utils::process_env::env_var("DEBUG_SDK")
+                    .ok()
+                    .as_deref(),
+            )
+            || crate::utils::env_utils::is_env_truthy(
+                crate::utils::process_env::env_var("CLAUDE_CODE_DEBUG")
+                    .ok()
+                    .as_deref(),
             );
 
         let profiles = ProfileSelection::parse(debug_filter).or(ProfileSelection::from_env());
@@ -614,7 +625,10 @@ mod tests {
             query_pump,
         };
         assert_eq!(ProfileSelection::parse(None), ProfileSelection::default());
-        assert_eq!(ProfileSelection::parse(Some("")), ProfileSelection::default());
+        assert_eq!(
+            ProfileSelection::parse(Some("")),
+            ProfileSelection::default()
+        );
         assert_eq!(ProfileSelection::parse(Some("1")), ProfileSelection::ALL);
         assert_eq!(ProfileSelection::parse(Some("true")), ProfileSelection::ALL);
         assert_eq!(
