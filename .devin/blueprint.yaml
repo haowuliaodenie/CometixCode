@@ -1,7 +1,9 @@
 runs-on: windows
 initialize:
-  - name: toolchain (mingw-w64 gcc, just, python)
-    run: choco install -y mingw just python
+  - name: toolchain (mingw-w64 gcc, just, python pinned so the shim path stays valid)
+    run: |
+      choco install -y mingw just
+      choco install -y python --version 3.14.7
   - name: rustup stable for x86_64-pc-windows-gnu
     run: |
       curl -fsSL -o /tmp/rustup-init.exe https://win.rustup.rs/x86_64
@@ -10,11 +12,11 @@ initialize:
     run: |
       curl -fsSL -o /tmp/nextest.zip https://get.nexte.st/latest/windows
       unzip -o -q /tmp/nextest.zip -d /tmp/nextest-bin
-      cp /tmp/nextest-bin/cargo-nextest.exe "$USERPROFILE/.cargo/bin/"
+      cp /tmp/nextest-bin/cargo-nextest.exe "$(cygpath -u "$USERPROFILE")/.cargo/bin/"
   - name: python3 shim for justfile _prep shebang
     run: cp /c/Python314/python.exe /c/Python314/python3.exe
   - name: PATH for cargo + mingw + python
-    run: echo "PATH=$USERPROFILE/.cargo/bin:/c/ProgramData/mingw64/mingw64/bin:/c/Python314:$PATH" >> $ENVRC
+    run: echo "PATH=$(cygpath -u "$USERPROFILE")/.cargo/bin:/c/ProgramData/mingw64/mingw64/bin:/c/Python314:$PATH" >> $ENVRC
 maintenance: |
   cargo fetch --locked
 knowledge:
