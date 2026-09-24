@@ -1,0 +1,30 @@
+runs-on: windows
+initialize:
+  - name: toolchain (mingw-w64 gcc, just, python)
+    run: choco install -y mingw just python
+  - name: rustup stable for x86_64-pc-windows-gnu
+    run: |
+      curl -fsSL -o /tmp/rustup-init.exe https://win.rustup.rs/x86_64
+      /tmp/rustup-init.exe -y --default-toolchain stable --default-host x86_64-pc-windows-gnu --profile minimal
+  - name: cargo-nextest prebuilt binary (get.nexte.st)
+    run: |
+      curl -fsSL -o /tmp/nextest.zip https://get.nexte.st/latest/windows
+      unzip -o -q /tmp/nextest.zip -d /tmp/nextest-bin
+      cp /tmp/nextest-bin/cargo-nextest.exe "$USERPROFILE/.cargo/bin/"
+  - name: python3 shim for justfile _prep shebang
+    run: cp /c/Python314/python.exe /c/Python314/python3.exe
+  - name: PATH for cargo + mingw + python
+    run: echo "PATH=$USERPROFILE/.cargo/bin:/c/ProgramData/mingw64/mingw64/bin:/c/Python314:$PATH" >> $ENVRC
+maintenance: |
+  cargo fetch --locked
+knowledge:
+  - name: test
+    contents: |
+      just test — the gate (cargo-nextest, env-pinned). On Windows just needs POSIX shell: just --shell 'C:\Program Files\Git\usr\bin\sh.exe' --shell-arg -c test
+      cargo test is NOT valid — env/OnceLock state leaks between tests in one process; only nextest is the gate.
+  - name: build
+    contents: |
+      cargo build --release — target x86_64-pc-windows-gnu; mingw gcc on PATH needed (ring, onig_sys, tree-sitter C deps). Binary: target/release/cometix.exe
+  - name: known test state on Windows
+    contents: |
+      Baseline (2026-09-24): 5573 pass / 705 fail / 6 skip. Clusters: ~105 "plugin loading requires process lifetime runtime" panics, ~35 utils::model env asserts, Unix/macOS path tests (UNC prefix, /private/tmp), shell/pipe semantics, 4 reqwest "no rustls crypto provider" panics, 2 tests hang (cli::structured_io sdk_permission_hook…, services::mcp::client process_mcp_result…).
